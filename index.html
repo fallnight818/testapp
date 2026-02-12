@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Chat App</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #e5ddd5; height: 100vh; display: flex; flex-direction: column; }
+        h1 { text-align: center; color: #333; background: #fff; margin: 0; padding: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.1); z-index: 1; }
+        .input-group { display: flex; gap: 10px; background: #f0f0f0; padding: 10px; box-shadow: 0 -1px 2px rgba(0,0,0,0.1); }
+        input { flex: 1; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem; outline: none; }
+        input:focus { border-color: #007bff; }
+        button { padding: 0.8rem 1.5rem; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background 0.3s; }
+        button:hover { background-color: #0056b3; }
+        #wordList { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 8px; }
+        .word-card { background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); align-self: flex-start; max-width: 80%; animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <h1>My Chat App</h1>
+    
+    <div id="wordList"></div>
+
+    <div class="input-group">
+        <input type="text" id="wordInput" placeholder="Type a message...">
+        <button id="saveBtn">Send</button>
+    </div>
+
+    <script>
+        const wordInput = document.getElementById('wordInput');
+        const saveBtn = document.getElementById('saveBtn');
+        const wordList = document.getElementById('wordList');
+        const displayedIds = new Set(); // Track IDs of messages already on screen
+
+        // Function to save a word
+        async function saveWord() {
+            const word = wordInput.value.trim();
+            
+            if (!word) return;
+
+            try {
+                const response = await fetch('/save-word', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ word })
+                });
+
+                if (response.ok) {
+                    wordInput.value = ''; // Clear input
+                    loadWords(); // Refresh list
+                } else {
+                    console.error('Failed to save word');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Function to load words
+        async function loadWords() {
+            try {
+                const response = await fetch('/get-words');
+                const words = await response.json();
+                
+                let newMessagesAdded = false;
+                
+                words.forEach(item => {
+                    if (!displayedIds.has(item.id)) {
+                        const div = document.createElement('div');
+                        div.className = 'word-card';
+                        div.textContent = item.content;
+                        wordList.appendChild(div);
+                        displayedIds.add(item.id);
+                        newMessagesAdded = true;
+                    }
+                });
+
+                // Scroll to bottom if new messages arrived
+                if (newMessagesAdded) {
+                    wordList.scrollTop = wordList.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Error loading words:', error);
+            }
+        }
+
+        // Event Listeners
+        saveBtn.addEventListener('click', saveWord);
+        wordInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveWord();
+        });
+
+        loadWords(); // Load on startup
+
+        // Automatically refresh the messages every 1 seconds
+        setInterval(loadWords, 1000);
+    </script>
+</body>
+</html>
